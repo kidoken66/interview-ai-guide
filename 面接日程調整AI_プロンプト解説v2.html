@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面接日程調整AI｜プロンプトのしくみ</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@600&display=swap');
+
+:root {
+  --navy: #0F2044;
+  --blue: #1B4FD8;
+  --accent: #E63946;
+  --gold: #F4A228;
+  --green: #059669;
+  --purple: #7C3AED;
+  --teal: #0891B2;
+  --white: #FFFFFF;
+  --offwhite: #F4F6FB;
+  --gray: #6B7280;
+  --text: #1F2937;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--offwhite); color: var(--text); line-height: 1.7; }
+
+/* HERO */
+.hero {
+  background: var(--navy);
+  color: white;
+  padding: 56px 24px 48px;
+  text-align: center;
+}
+.hero-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.hero h1 {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.hero h1 em { color: var(--gold); font-style: normal; }
+.hero p { font-size: 14px; color: rgba(255,255,255,0.65); max-width: 480px; margin: 0 auto; }
+
+/* BEFORE AFTER */
+.ba-section {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 24px 0;
+}
+.ba-section h2 {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 20px;
+  color: var(--navy);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ba-section h2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #dde;
+}
+.ba-grid {
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  gap: 0;
+  align-items: stretch;
+}
+.ba-card {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+.ba-card-header {
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ba-before .ba-card-header { background: #FEE2E2; color: #991B1B; }
+.ba-after .ba-card-header { background: #D1FAE5; color: #065F46; }
+.ba-card-body {
+  background: white;
+  padding: 16px 20px;
+}
+.ba-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ba-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+.ba-before .ba-step { background: #FFF5F5; }
+.ba-after .ba-step { background: #F0FDF4; }
+.ba-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ba-before .ba-step-num { background: #FECACA; color: #DC2626; }
+.ba-after .ba-step-num { background: #A7F3D0; color: #065F46; }
+.ba-step-text { line-height: 1.5; }
+.ba-step-text strong { display: block; font-size: 13px; }
+.ba-step-text small { font-size: 11px; color: var(--gray); }
+.ba-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--blue);
+  font-weight: 700;
+}
+.ba-footer {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.ba-before .ba-footer { background: #FEE2E2; color: #991B1B; }
+.ba-after .ba-footer { background: #D1FAE5; color: #065F46; }
+
+.ba-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+.ba-summary-item {
+  background: white;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.ba-summary-item .num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--blue);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.ba-summary-item .unit { font-size: 13px; color: var(--navy); }
+.ba-summary-item .label { font-size: 11px; color: var(--gray); margin-top: 4px; }
+
+/* WHAT IS PROMPT */
+.what-section {
+  max-width: 760px;
+  margin: 40px auto 0;
+  padding: 0 24px;
+}
+.what-box {
+  background: var(--navy);
+  color: white;
+  border-radius: 14px;
+  padding: 28px 32px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 20px;
+  align-items: center;
+}
+.what-side { text-align: center; }
+.what-side .emoji { font-size: 36px; margin-bottom: 10px; }
+.what-side .what-label { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 4px; letter-spacing: 1px; }
+.what-side .what-value { font-size: 15px; font-weight: 700; }
+.what-eq { font-size: 32px; color: var(--gold); text-align: center; font-weight: 700; }
+.what-desc {
+  grid-column: 1 / -1;
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.7;
+  text-align: center;
+}
+.what-desc strong { color: var(--gold); }
+
+/* STEPS */
+.steps-section {
+  max-width: 760px;
+  margin: 40px auto 0;
+  padding: 0 24px;
+}
+.steps-section h2 {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 20px;
+  color: var(--navy);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.steps-section h2::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #dde;
+}
+
+.step-list { display: flex; flex-direction: column; gap: 12px; }
+
+.step-item {
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+.step-header:hover { background: #fafafa; }
+.step-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  color: white;
+  font-weight: 700;
+}
+.step-meta { flex: 1; }
+.step-tag-small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.step-title { font-size: 15px; font-weight: 700; color: var(--navy); }
+.step-chevron { font-size: 18px; color: var(--gray); transition: transform 0.2s; }
+.step-item.open .step-chevron { transform: rotate(180deg); }
+
+.step-body {
+  display: none;
+  padding: 0 20px 20px;
+  border-top: 1px solid #f0f0f5;
+}
+.step-item.open .step-body { display: block; }
+.step-desc-text {
+  font-size: 13px;
+  color: var(--gray);
+  padding: 14px 0 12px;
+  line-height: 1.8;
+  border-bottom: 1px dashed #eee;
+  margin-bottom: 14px;
+}
+
+.content-card {
+  background: var(--offwhite);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.content-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.item-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.item-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.6;
+}
+.item-list li .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gray);
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+.item-list li strong { color: var(--navy); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.mini-card {
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid;
+}
+.mini-card .mc-title { font-size: 11px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.mini-card ul { list-style: none; }
+.mini-card ul li { font-size: 12px; color: #555; padding: 2px 0; padding-left: 12px; position: relative; }
+.mini-card ul li::before { content: '·'; position: absolute; left: 2px; font-size: 16px; color: var(--gray); top: -2px; }
+
+.buf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; border-radius: 8px; overflow: hidden; }
+.buf-table th { background: var(--navy); color: white; padding: 8px 12px; text-align: center; }
+.buf-table td { padding: 7px 12px; text-align: center; border-bottom: 1px solid #eee; background: white; }
+.buf-ok { color: #059669; font-weight: 700; }
+.buf-warn { color: #D97706; font-weight: 700; }
+
+.output-box {
+  background: #1A1A2E;
+  border-radius: 10px;
+  padding: 16px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #CDD6F4;
+}
+.hl-y { color: #F9E2AF; }
+.hl-g { color: #A6E3A1; }
+.hl-b { color: #89B4FA; }
+.hl-r { color: #F38BA8; }
+.hl-gr { color: #6C7086; }
+
+.check-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.check-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #374151; }
+.ck { width: 20px; height: 20px; border-radius: 5px; background: #D1FAE5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+.pattern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pattern-card { background: white; border-radius: 10px; padding: 14px 16px; border-top: 3px solid; }
+.p-a { border-color: var(--blue); }
+.p-b { border-color: var(--gray); }
+.pattern-card .pt { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.p-a .pt { color: var(--blue); }
+.p-b .pt { color: var(--gray); }
+.pattern-card .pv { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.pattern-card ul { list-style: none; }
+.pattern-card ul li { font-size: 12px; color: #555; padding: 2px 0; padding-left: 12px; position: relative; }
+.pattern-card ul li::before { content: '·'; position: absolute; left: 2px; font-size: 16px; color: var(--gray); top: -2px; }
+
+.important-note {
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #92400E;
+  margin-top: 10px;
+}
+.important-note strong { color: #C2410C; }
+
+/* COLORS per step */
+.s1 { background: #E94560; }
+.s2 { background: #1B4FD8; }
+.s3 { background: #059669; }
+.s4 { background: #D97706; }
+.s5 { background: #7C3AED; }
+.s6 { background: #DB2777; }
+.s7 { background: #0891B2; }
+.t1 { color: #E94560; }
+.t2 { color: #1B4FD8; }
+.t3 { color: #059669; }
+.t4 { color: #D97706; }
+.t5 { color: #7C3AED; }
+.t6 { color: #DB2777; }
+.t7 { color: #0891B2; }
+.mc1 { border-color: #059669; }
+.mc2 { border-color: #1B4FD8; }
+.mc3 { border-color: #D97706; }
+.mc4 { border-color: #7C3AED; }
+
+/* FOOTER */
+footer { background: var(--navy); color: rgba(255,255,255,0.4); text-align: center; padding: 28px 24px; font-size: 12px; margin-top: 56px; }
+
+@media (max-width: 600px) {
+  .hero h1 { font-size: 22px; }
+  .ba-grid { grid-template-columns: 1fr; }
+  .ba-arrow { transform: rotate(90deg); }
+  .what-box { grid-template-columns: 1fr; text-align: center; }
+  .what-eq { display: none; }
+  .two-col { grid-template-columns: 1fr; }
+  .pattern-grid { grid-template-columns: 1fr; }
+  .ba-summary { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">AI解説資料</div>
+  <h1>面接日程調整AIは<br><em>どうやって動いているのか？</em></h1>
+  <p>プロンプト（AIへの指示書）のしくみを、AIが分からない方向けにやさしく解説します</p>
+</div>
+
+<!-- BEFORE / AFTER -->
+<div class="ba-section">
+  <h2>まず「何が変わるか」を見てください</h2>
+
+  <div class="ba-grid">
+    <div class="ba-card ba-before">
+      <div class="ba-card-header">😓 AIがない場合</div>
+      <div class="ba-card-body">
+        <div class="ba-flow">
+          <div class="ba-step">
+            <div class="ba-step-num">1</div>
+            <div class="ba-step-text">
+              <strong>候補者から日程が届く</strong>
+              <small>メールをそのまま受け取る</small>
+            </div>
+          </div>
+          <div class="ba-step">
+            <div class="ba-step-num">2</div>
+            <div class="ba-step-text">
+              <strong>5社分を頭の中で振り分ける</strong>
+              <small>バッファ・優先度・回数を手動で考える</small>
+            </div>
+          </div>
+          <div class="ba-step">
+            <div class="ba-step-num">3</div>
+            <div class="ba-step-text">
+              <strong>各社へのメール文面を個別作成</strong>
+              <small>メール・Spir・HARMOSそれぞれ対応</small>
+            </div>
+          </div>
+          <div class="ba-step">
+            <div class="ba-step-num">4</div>
+            <div class="ba-step-text">
+              <strong>確認して送信</strong>
+              <small>ミスがないか再チェック</small>
+            </div>
+          </div>
+        </div>
+        <div class="ba-footer">⏱ 1候補者あたり15〜30分</div>
+      </div>
+    </div>
+
+    <div class="ba-arrow">→</div>
+
+    <div class="ba-card ba-after">
+      <div class="ba-card-header">✨ AIがある場合</div>
+      <div class="ba-card-body">
+        <div class="ba-flow">
+          <div class="ba-step">
+            <div class="ba-step-num">1</div>
+            <div class="ba-step-text">
+              <strong>候補者のメールをコピペ</strong>
+              <small>整形不要、そのまま貼り付けるだけ</small>
+            </div>
+          </div>
+          <div class="ba-step">
+            <div class="ba-step-num">2</div>
+            <div class="ba-step-text">
+              <strong>AIが自動で振り分け・文面生成</strong>
+              <small>バッファ・優先度・回数を自動計算</small>
+            </div>
+          </div>
+          <div class="ba-step">
+            <div class="ba-step-num">3</div>
+            <div class="ba-step-text">
+              <strong>出力を確認して送信</strong>
+              <small>内容チェックだけでOK</small>
+            </div>
+          </div>
+        </div>
+        <div class="ba-footer">⚡ 1候補者あたり2〜3分</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ba-summary">
+    <div class="ba-summary-item">
+      <div class="num">1/5</div>
+      <div class="unit">の時間</div>
+      <div class="label">作業時間が大幅に短縮</div>
+    </div>
+    <div class="ba-summary-item">
+      <div class="num">0</div>
+      <div class="unit">振り分けミス</div>
+      <div class="label">ルールに従って自動チェック</div>
+    </div>
+    <div class="ba-summary-item">
+      <div class="num">即時</div>
+      <div class="unit">対応</div>
+      <div class="label">候補者が増えても同じスピード</div>
+    </div>
+  </div>
+</div>
+
+<!-- WHAT IS PROMPT -->
+<div class="what-section">
+  <div class="what-box">
+    <div class="what-side">
+      <div class="emoji">📋</div>
+      <div class="what-label">人間の場合</div>
+      <div class="what-value">業務マニュアル</div>
+    </div>
+    <div class="what-eq">=</div>
+    <div class="what-side">
+      <div class="emoji">🤖</div>
+      <div class="what-label">AIの場合</div>
+      <div class="what-value">プロンプト</div>
+    </div>
+    <div class="what-desc">
+      「プロンプト」とは、AIへの<strong>指示書</strong>のことです。新しいスタッフに渡す業務マニュアルと同じで、<strong>何を参照して・どんなルールで動いて・どんな形で答えを出すか</strong>をあらかじめ書き込んでおきます。
+    </div>
+  </div>
+</div>
+
+<!-- STEPS -->
+<div class="steps-section">
+  <h2>プロンプトの7つの構成要素</h2>
+
+  <div class="step-list">
+
+    <!-- STEP 1 -->
+    <div class="step-item open">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s1">①</div>
+        <div class="step-meta">
+          <div class="step-tag-small t1">ROLE</div>
+          <div class="step-title">役割を与える</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">AIに「あなたは〇〇です」と伝える部分。人間でいうと「あなたはこの会社の日程調整担当です」と役職を伝えるイメージです。役割が明確になると、AIが適切な視点で考えるようになります。</div>
+        <div class="content-card">
+          <div class="content-card-title">実際の指示</div>
+          <ul class="item-list">
+            <li><span class="dot"></span>「あなたは<strong>人材エージェントの面接日程調整アシスタント</strong>です」</li>
+            <li><span class="dot"></span>候補者の日程をもとに<strong>最適な面接順序を判断</strong>し、各社への連絡アクションを出力する</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-item">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s2">②</div>
+        <div class="step-meta">
+          <div class="step-tag-small t2">DATA</div>
+          <div class="step-title">どのデータを参照するか教える</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">AIが企業情報（面接回数・調整方式など）をどこから参照するかを伝えます。IT環境によって2パターンあり、将来的にはPattern Aに移行する計画です。</div>
+        <div class="content-card">
+          <div class="content-card-title">2つのパターン</div>
+          <div class="pattern-grid">
+            <div class="pattern-card p-a">
+              <div class="pt">Pattern A（推奨）</div>
+              <div class="pv">NotebookLM連携</div>
+              <ul>
+                <li>企業マスタを自動参照</li>
+                <li>情報更新がラク</li>
+                <li>Workspace対応が必要</li>
+              </ul>
+            </div>
+            <div class="pattern-card p-b">
+              <div class="pt">Pattern B（暫定）</div>
+              <div class="pv">スプレッドシート手動</div>
+              <ul>
+                <li>担当者が手動で貼り付け</li>
+                <li>すぐ始められる</li>
+                <li>IT確認なしでOK</li>
+              </ul>
+            </div>
+          </div>
+          <div class="important-note">💡 どちらのパターンでも<strong>プロンプト本体は共通</strong>。切り替えコストはほぼゼロです。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-item">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s3">③</div>
+        <div class="step-meta">
+          <div class="step-tag-small t3">RULES — 最重要</div>
+          <div class="step-title">ルールを伝える</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">プロンプトの核心部分。「最終面接を揃えたい」「面接回数が多い会社を先に入れたい」といった業務ノウハウを、AIが理解できる言葉で書き込んだ部分です。担当者の暗黙知をここに言語化しています。</div>
+        <div class="content-card">
+          <div class="content-card-title">主なルール</div>
+          <div class="two-col">
+            <div class="mini-card mc1">
+              <div class="mc-title">🎯 最優先ルール</div>
+              <ul>
+                <li>全社の最終面接タイミングを揃える</li>
+                <li>オファー期限が短いので逆算で組む</li>
+              </ul>
+            </div>
+            <div class="mini-card mc2">
+              <div class="mc-title">📊 面接順序の決め方</div>
+              <ul>
+                <li>残り回数＝総回数－（今の面接回−1）</li>
+                <li>残り回数が多い会社→前半に配置</li>
+                <li>同じなら優先度（低→中→高）で判断</li>
+              </ul>
+            </div>
+            <div class="mini-card mc3">
+              <div class="mc-title">⏱️ 間隔（バッファ）ルール</div>
+              <ul>
+                <li>対面の後は必ず2時間空ける</li>
+                <li>オンライン同士なら1時間でOK</li>
+                <li>メール・HARMOS・Spirすべて同じ扱い</li>
+              </ul>
+            </div>
+            <div class="mini-card mc4">
+              <div class="mc-title">📅 候補日の出し方</div>
+              <ul>
+                <li>1社あたり3件が基本</li>
+                <li>日付だけでなく時間帯も分散させる</li>
+                <li>最終面接の会社の最後尾に「第一希望」を付ける</li>
+              </ul>
+            </div>
+          </div>
+          <table class="buf-table">
+            <tr><th>前の面接</th><th>次の面接</th><th>必要な間隔</th></tr>
+            <tr><td>対面</td><td>対面 / オンライン</td><td class="buf-warn">2時間以上</td></tr>
+            <tr><td>オンライン</td><td>対面</td><td class="buf-warn">2時間以上</td></tr>
+            <tr><td>オンライン</td><td>オンライン</td><td class="buf-ok">1時間以上</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step-item">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s4">④</div>
+        <div class="step-meta">
+          <div class="step-tag-small t4">EXCEPTIONS</div>
+          <div class="step-title">イレギュラー対応ルール</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">情報が足りないときやマスタにない企業が来たとき、AIが「分かりません」と止まらないよう「デフォルト値」を決めておく部分です。仮置きして進み、担当者に確認を促します。</div>
+        <div class="content-card">
+          <div class="content-card-title">不明のときの仮置きルール</div>
+          <ul class="item-list">
+            <li><span class="dot"></span><strong>所要時間が不明</strong>：マスタの目安→なければ60分で仮置き</li>
+            <li><span class="dot"></span><strong>面接形式が不明</strong>：オンラインで仮置き</li>
+            <li><span class="dot"></span><strong>優先度が不明</strong>：「中」で仮置き</li>
+            <li><span class="dot"></span><strong>マスタにない企業</strong>：メール文面・60分・パターン①で仮置き</li>
+            <li><span class="dot"></span>仮置きした場合は<strong>出力内に必ず明記</strong>し担当者に確認を促す</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step-item">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s5">⑤</div>
+        <div class="step-meta">
+          <div class="step-tag-small t5">OUTPUT RULES</div>
+          <div class="step-title">出力のルール</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">AIが出す答えの「中身」に関するルールです。「余計な挨拶文はいらない」「日程は3候補出す」「時間帯をバラける」など、そのまま実務で使えるように細かく指定しています。</div>
+        <div class="content-card">
+          <div class="content-card-title">主な出力ルール</div>
+          <ul class="item-list">
+            <li><span class="dot"></span>メール文面は<strong>日程のみ</strong>（件名・挨拶・締めは不要）</li>
+            <li><span class="dot"></span>日程候補は<strong>3件基本</strong>、日付も時間帯も分散させる</li>
+            <li><span class="dot"></span>連続する時間は<strong>1つにまとめる</strong>（10時〜11時＋11時〜12時→10時〜12時）</li>
+            <li><span class="dot"></span>同日に複数枠がある場合は<strong>「/」でつないで1件</strong>扱い</li>
+            <li><span class="dot"></span>Spir（その場確定型）は<strong>1枠のみ</strong>提示</li>
+            <li><span class="dot"></span>最終面接の会社の最後尾候補に<strong>（第一希望）</strong>を付与</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step-item">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s6">⑥</div>
+        <div class="step-meta">
+          <div class="step-tag-small t6">SELF-CHECK</div>
+          <div class="step-title">出力前の自己チェック</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">AIが答えを出す直前に、自分でミスがないかを確認するステップです。人間でいう「送信前の見直し」。チェック結果は出力されず、問題があれば自動で修正してから出力します。</div>
+        <div class="content-card">
+          <div class="content-card-title">チェック項目（主要6点）</div>
+          <ul class="check-list">
+            <li><span class="ck">✓</span>すべての候補枠の組み合わせでバッファを満たしているか</li>
+            <li><span class="ck">✓</span>残り面接回数の計算が正しいか</li>
+            <li><span class="ck">✓</span>候補日が3件（最低2件）あるか（Spir以外）</li>
+            <li><span class="ck">✓</span>同一会社の候補日の時間帯が分散されているか</li>
+            <li><span class="ck">✓</span>同日の複数枠が1件にまとめられているか</li>
+            <li><span class="ck">✓</span>（第一希望）が1つだけ正しく付与されているか</li>
+          </ul>
+          <div class="important-note" style="margin-top:12px;">💡 不備があれば<strong>自動修正してから出力</strong>。修正できない場合のみ担当者に通知します。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="step-item">
+      <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="step-badge s7">⑦</div>
+        <div class="step-meta">
+          <div class="step-tag-small t7">FORMAT</div>
+          <div class="step-title">出力のフォーマットを伝える</div>
+        </div>
+        <div class="step-chevron">▾</div>
+      </div>
+      <div class="step-body">
+        <div class="step-desc-text">AIが毎回同じ「型」で答えを出せるよう、出力の見た目を指定します。担当者が見やすく、そのまま使えるレイアウトになっています。</div>
+        <div class="content-card">
+          <div class="content-card-title">出力イメージ</div>
+          <div class="output-box">
+<span class="hl-y">【田中さん】/ 面接スケジュール提案</span><br><br>
+<span class="hl-g">▼ 各社への連絡アクション</span><br>
+<span class="hl-b">・A社（HARMOS）→</span><br>
+&nbsp;&nbsp;・6月23日（月）10:00開始<br>
+&nbsp;&nbsp;・6月24日（火）14:00開始<br>
+&nbsp;&nbsp;・6月25日（水）11:00開始<br>
+<span class="hl-b">・B社（メール）→</span><br>
+&nbsp;&nbsp;・6月25日（水）10:00〜12:00<br>
+&nbsp;&nbsp;・6月26日（木）14:00〜16:00<br>
+&nbsp;&nbsp;・6月27日（金）11:00〜12:00 / 15:00〜16:00<span class="hl-r">（第一希望）</span><br>
+<span class="hl-b">・C社（Spir）→</span><br>
+&nbsp;&nbsp;「6月26日 11:00枠を選択してください」<br><br>
+<span class="hl-g">▼ 確認事項</span><span class="hl-gr">（仮置きがある場合のみ）</span><br><br>
+<span class="hl-g">▼ 推奨順序と理由</span><span class="hl-gr">（2〜3行）</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div style="height: 56px;"></div>
+<footer>面接日程調整AI プロンプト解説資料</footer>
+
+</body>
+</html>
